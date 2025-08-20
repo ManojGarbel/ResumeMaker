@@ -177,7 +177,8 @@ export default function HomePage() {
     const element = previewRef.current;
     // Enable PDF mode styles for clearer structure and typography
     element.classList.add('pdf-mode');
-    const canvas = await html2canvas(element, { scale: 3, backgroundColor: null });
+    const scale = 3;
+    const canvas = await html2canvas(element, { scale, backgroundColor: null });
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
@@ -193,17 +194,18 @@ export default function HomePage() {
 
     const containerRect = element.getBoundingClientRect();
     const anchors = Array.from(element.querySelectorAll('a[href]')) as HTMLAnchorElement[];
-    const mmPerPx = imgW / canvas.width;
+    // Convert CSS pixels to mm using scale factor used by html2canvas
+    const mmPerCssPx = imgW / (canvas.width / scale);
     anchors.forEach((a) => {
       const href = a.getAttribute('href');
       if (!href) return;
       const r = a.getBoundingClientRect();
       const relX = r.left - containerRect.left;
       const relY = r.top - containerRect.top;
-      const linkXmm = x + relX * mmPerPx;
-      const linkYmm = y + relY * mmPerPx;
-      const linkWmm = r.width * mmPerPx;
-      const linkHmm = r.height * mmPerPx;
+      const linkXmm = x + relX * mmPerCssPx;
+      const linkYmm = y + relY * mmPerCssPx;
+      const linkWmm = r.width * mmPerCssPx;
+      const linkHmm = r.height * mmPerCssPx;
       try {
         // @ts-ignore
         pdf.link(linkXmm, linkYmm, linkWmm, linkHmm, { url: href });
@@ -613,8 +615,10 @@ export default function HomePage() {
                           {p.tech && <span className="text-slate-500">{p.tech}</span>}
                         </div>
                         <div className="text-xs space-x-3 mt-0.5">
+                          {/* In PDF, show Tech Stack in place of Live Link */}
+                          {p.tech && <span className="pdf-only hidden text-slate-600">{p.tech}</span>}
                           {p.link && (
-                            <a className="preview-link" href={normalizeUrl(p.link)} target="_blank" rel="noreferrer noopener">🔗 View Project / Live Link</a>
+                            <a className="preview-link pdf-hide" href={normalizeUrl(p.link)} target="_blank" rel="noreferrer noopener">🔗 View Project / Live Link</a>
                           )}
                           {p.repo && (
                             <a className="preview-link" href={normalizeUrl(p.repo)} target="_blank" rel="noreferrer noopener">📂 GitHub Repo</a>

@@ -76,3 +76,16 @@ html, body, #__next {
 .resume-doc.pdf-mode .section-title { font-size: 13.5px; font-weight: 800; }
 .resume-doc.pdf-mode .section-body { line-height: 1.35; }
 .resume-doc.pdf-mode .badge { border-color: #cbd5e1; background: #f8fafc; }
+
+/* Show/Hide helpers for PDF */
+.resume-doc .pdf-only { display: none; }
+.resume-doc.pdf-mode .pdf-only { display: inline; }
+.resume-doc.pdf-mode .pdf-hide { display: none; }
+
+/* Skills visual separation in PDF */
+.resume-doc.pdf-mode .badge {
+  display: inline-block;
+  margin-right: 4px;
+  margin-bottom: 4px;
+  padding: 2px 6px;
+}
