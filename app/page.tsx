@@ -175,7 +175,9 @@ export default function HomePage() {
   async function downloadPdf() {
     if (!previewRef.current) return;
     const element = previewRef.current;
-    const canvas = await html2canvas(element, { scale: 2, backgroundColor: null });
+    // Enable PDF mode styles for clearer structure and typography
+    element.classList.add('pdf-mode');
+    const canvas = await html2canvas(element, { scale: 3, backgroundColor: null });
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
@@ -209,6 +211,7 @@ export default function HomePage() {
     });
 
     pdf.save('resume.pdf');
+    element.classList.remove('pdf-mode');
   }
 
   function resetAll() {
@@ -521,7 +524,7 @@ export default function HomePage() {
         <section className="lg:w-[52%]">
           <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 bg-white/80 dark:bg-slate-900/90">
             <h2 className="font-semibold text-slate-700 dark:text-slate-200 mb-3">Live Preview</h2>
-            <div ref={previewRef} className="bg-white text-slate-900 p-6 rounded-md shadow-md max-w-[794px] w-full mx-auto">
+            <div ref={previewRef} className="resume-doc bg-white text-slate-900 p-6 rounded-md shadow-md max-w-[794px] w-full mx-auto">
               {/* ATS-friendly single column content */}
               <div className="flex items-start gap-4">
                 {has.img && (
@@ -529,7 +532,7 @@ export default function HomePage() {
                 )}
                 <div className="flex-1">
                   {has.contact && (
-                    <h1 className="text-2xl font-semibold">{data.contact.fullName}</h1>
+                    <h1 className="text-2xl font-semibold h1">{data.contact.fullName}</h1>
                   )}
                   <div className="text-xs mt-1 space-x-3 text-slate-700">
                     {data.contact.email && <a className="preview-link" href={mailto(data.contact.email)}>{data.contact.email}</a>}
@@ -583,7 +586,7 @@ export default function HomePage() {
                     {data.experience.filter((e) => e.role?.trim()).map((e, i) => (
                       <div key={i}>
                         <div className="flex justify-between text-sm font-medium">
-                          <span>
+                          <span className="subheading">
                             {e.role}
                             {e.company ? ` | ${e.company}` : ''}
                             {e.location ? `, ${e.location}` : ''}
@@ -604,7 +607,7 @@ export default function HomePage() {
                     {data.projects.filter((p) => p.name?.trim()).map((p, i) => (
                       <div key={i}>
                         <div className="flex justify-between text-sm font-medium">
-                          <span>
+                          <span className="subheading">
                             {p.name}
                           </span>
                           {p.tech && <span className="text-slate-500">{p.tech}</span>}
@@ -657,7 +660,7 @@ export default function HomePage() {
                     {data.education.filter((e) => e.degree?.trim()).map((e, i) => (
                       <div key={i}>
                         <div className="flex justify-between text-sm font-medium">
-                          <span>
+                          <span className="subheading">
                             {e.degree}
                             {e.school ? ` | ${e.school}` : ''}
                           </span>

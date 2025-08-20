@@ -64,3 +64,15 @@ html, body, #__next {
     font-size: 12px;
   }
 }
+
+/* PDF capture mode: clearer hierarchy and spacing */
+.resume-doc h1, .resume-doc .h1 { font-size: 20px; font-weight: 700; }
+.resume-doc h2, .resume-doc .section-title { font-size: 14px; font-weight: 700; color: #0f172a; }
+.resume-doc .subheading { font-size: 12px; font-weight: 600; color: #334155; }
+.resume-doc .section-body { line-height: 1.4; letter-spacing: 0; }
+.resume-doc a { color: #1d4ed8; text-decoration: underline; }
+
+.resume-doc.pdf-mode { font-size: 12px; }
+.resume-doc.pdf-mode .section-title { font-size: 13.5px; font-weight: 800; }
+.resume-doc.pdf-mode .section-body { line-height: 1.35; }
+.resume-doc.pdf-mode .badge { border-color: #cbd5e1; background: #f8fafc; }
