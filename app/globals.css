@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-grid-color: rgba(34, 211, 238, 0.06);
+}
+
+html, body, #__next {
+  height: 100%;
+}
+
+/* Futuristic subtle grid */
+.tech-grid {
+  background-image: linear-gradient(var(--bg-grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--bg-grid-color) 1px, transparent 1px);
+  background-size: 24px 24px, 24px 24px;
+}
+
+/* Subtle animated glow for buttons */
+.glow:hover {
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.15), 0 0 24px rgba(34, 211, 238, 0.25);
+}
+
+/* Print styles to tighten spacing */
+@media print {
+  html, body {
+    font-size: 12px;
+  }
+}
