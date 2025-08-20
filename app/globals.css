@@ -22,6 +22,42 @@ html, body, #__next {
   box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.15), 0 0 24px rgba(34, 211, 238, 0.25);
 }
 
+/* Terminal/coder theme helpers */
+.code-heading {
+  @apply font-mono text-[13px] tracking-wide text-cyan-500;
+}
+
+.cmd-btn {
+  @apply rounded-md bg-slate-800 text-slate-100 border border-slate-700 px-3 py-1.5 text-sm shadow-sm hover:bg-slate-700 hover:border-slate-600 transition-colors;
+}
+
+.preview-pane {
+  @apply border border-slate-200 rounded-md shadow-md bg-white;
+}
+
+/* Editor-like inputs */
+.editor-input, .editor-textarea, .input, .textarea {
+  background: linear-gradient(180deg, rgba(2,6,23,0.85), rgba(2,6,23,0.8));
+  border-color: rgb(51, 65, 85);
+  color: #e5e7eb;
+}
+.editor-input:focus, .editor-textarea:focus, .input:focus, .textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.2);
+}
+
+/* Typing/blink effect */
+.blink-caret {
+  border-right: 2px solid rgba(34,211,238,0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  animation: caret 1s step-end infinite;
+}
+
+@keyframes caret {
+  50% { border-color: transparent; }
+}
+
 /* Print styles to tighten spacing */
 @media print {
   html, body {
