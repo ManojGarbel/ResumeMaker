@@ -25,6 +25,7 @@ type ExperienceItem = {
 type ProjectItem = {
   name: string;
   link?: string;
+  repo?: string;
   description?: string;
   tech?: string;
 };
@@ -41,6 +42,7 @@ type CertificationItem = {
   title: string;
   issuer?: string;
   year?: string;
+  link?: string;
 };
 
 type ResumeData = {
@@ -49,9 +51,10 @@ type ResumeData = {
   experience: ExperienceItem[];
   projects: ProjectItem[];
   certifications: CertificationItem[];
-  skills?: string;
+  skills?: { techTools: string[]; softSkills: string[] } | string;
   education: EducationItem[];
   profileImageDataUrl?: string;
+  certificatesLink?: string;
 };
 
 const STORAGE_KEY = 'resume_builder_data_v1';
@@ -79,6 +82,22 @@ function classNames(...list: Array<string | false | null | undefined>) {
   return list.filter(Boolean).join(' ');
 }
 
+function normalizeUrl(raw?: string) {
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
+function mailto(email?: string) {
+  return email ? `mailto:${email}` : undefined;
+}
+
+function tel(phone?: string) {
+  return phone ? `tel:${phone}` : undefined;
+}
+
 export default function HomePage() {
   const [theme, setTheme] = useLocalStorage<string>(THEME_KEY, 'system');
   const [data, setData] = useLocalStorage<ResumeData>(STORAGE_KEY, {
@@ -87,9 +106,10 @@ export default function HomePage() {
     experience: [],
     projects: [],
     certifications: [],
-    skills: '',
+    skills: { techTools: [], softSkills: [] },
     education: [],
     profileImageDataUrl: '',
+    certificatesLink: '',
   });
 
   const previewRef = useRef<HTMLDivElement | null>(null);
@@ -165,9 +185,35 @@ export default function HomePage() {
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    const imgProps = { width: pageWidth, height: (canvas.height * pageWidth) / canvas.width };
-    const y = Math.max(0, (pageHeight - imgProps.height) / 2);
-    pdf.addImage(imgData, 'PNG', 0, y, imgProps.width, imgProps.height);
+    const wRatio = pageWidth / canvas.width;
+    const hRatio = pageHeight / canvas.height;
+    const ratio = Math.min(wRatio, hRatio);
+    const imgW = canvas.width * ratio;
+    const imgH = canvas.height * ratio;
+    const x = (pageWidth - imgW) / 2;
+    const y = (pageHeight - imgH) / 2;
+    pdf.addImage(imgData, 'PNG', x, y, imgW, imgH);
+
+    // Add clickable link overlays mapped from anchors
+    const containerRect = element.getBoundingClientRect();
+    const anchors = Array.from(element.querySelectorAll('a[href]')) as HTMLAnchorElement[];
+    const mmPerPx = imgW / canvas.width;
+    anchors.forEach((a) => {
+      const href = a.getAttribute('href');
+      if (!href) return;
+      const r = a.getBoundingClientRect();
+      const relX = r.left - containerRect.left;
+      const relY = r.top - containerRect.top;
+      const linkXmm = x + relX * mmPerPx;
+      const linkYmm = y + relY * mmPerPx;
+      const linkWmm = r.width * mmPerPx;
+      const linkHmm = r.height * mmPerPx;
+      try {
+        // @ts-ignore jsPDF typing
+        pdf.link(linkXmm, linkYmm, linkWmm, linkHmm, { url: href });
+      } catch {}
+    });
+
     pdf.save('resume.pdf');
   }
 
@@ -178,9 +224,10 @@ export default function HomePage() {
       experience: [],
       projects: [],
       certifications: [],
-      skills: '',
+      skills: { techTools: [], softSkills: [] },
       education: [],
       profileImageDataUrl: '',
+      certificatesLink: '',
     });
   }
 
@@ -190,7 +237,7 @@ export default function HomePage() {
     exp: data.experience?.length,
     proj: data.projects?.length,
     cert: data.certifications?.length,
-    skills: data.skills?.trim(),
+    skills: Array.isArray((data.skills as any)?.techTools) || typeof data.skills === 'string',
     edu: data.education?.length,
     img: data.profileImageDataUrl,
   }), [data]);
@@ -251,7 +298,6 @@ export default function HomePage() {
           <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 bg-white/60 dark:bg-slate-900/60">
             <div className="flex items-center justify-between mb-2">
               <h2 className="font-semibold text-slate-700 dark:text-slate-200">Work Experience</h2>
-              <button onClick={() => update('experience', [...data.experience, { role: '' }])} className="text-xs rounded-md border px-2 py-1">+ Add</button>
             </div>
             <div className="space-y-4">
               {data.experience.map((exp, i) => (
@@ -302,13 +348,15 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
+            <div className="mt-3">
+              <button onClick={() => update('experience', [...data.experience, { role: '' }])} className="text-xs rounded-md border px-3 py-1">+ Add</button>
+            </div>
           </div>
 
           {/* Projects */}
           <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 bg-white/60 dark:bg-slate-900/60">
             <div className="flex items-center justify-between mb-2">
               <h2 className="font-semibold text-slate-700 dark:text-slate-200">Projects</h2>
-              <button onClick={() => update('projects', [...data.projects, { name: '' }])} className="text-xs rounded-md border px-2 py-1">+ Add</button>
             </div>
             <div className="space-y-4">
               {data.projects.map((p, i) => (
@@ -319,14 +367,19 @@ export default function HomePage() {
                       copy[i] = { ...copy[i], name: e.target.value };
                       update('projects', copy);
                     }} />
-                    <input className="input" placeholder="Link" value={p.link || ''} onChange={(e) => {
+                    <input className="input sm:col-span-2" placeholder="Tech Stack (comma-separated)" value={p.tech || ''} onChange={(e) => {
+                      const copy = [...data.projects];
+                      copy[i] = { ...copy[i], tech: e.target.value };
+                      update('projects', copy);
+                    }} />
+                    <input className="input" placeholder="Project Link" value={p.link || ''} onChange={(e) => {
                       const copy = [...data.projects];
                       copy[i] = { ...copy[i], link: e.target.value };
                       update('projects', copy);
                     }} />
-                    <input className="input sm:col-span-2" placeholder="Tech (comma-separated)" value={p.tech || ''} onChange={(e) => {
+                    <input className="input" placeholder="Repo Link" value={p.repo || ''} onChange={(e) => {
                       const copy = [...data.projects];
-                      copy[i] = { ...copy[i], tech: e.target.value };
+                      copy[i] = { ...copy[i], repo: e.target.value };
                       update('projects', copy);
                     }} />
                   </div>
@@ -347,17 +400,22 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
+            <div className="mt-3">
+              <button onClick={() => update('projects', [...data.projects, { name: '' }])} className="text-xs rounded-md border px-3 py-1">+ Add</button>
+            </div>
           </div>
 
           {/* Certifications */}
           <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 bg-white/60 dark:bg-slate-900/60">
             <div className="flex items-center justify-between mb-2">
               <h2 className="font-semibold text-slate-700 dark:text-slate-200">Certifications</h2>
-              <button onClick={() => update('certifications', [...data.certifications, { title: '' }])} className="text-xs rounded-md border px-2 py-1">+ Add</button>
+            </div>
+            <div className="mb-3">
+              <input className="input" placeholder="All Certificates Link (Google Drive/Portfolio)" value={data.certificatesLink || ''} onChange={(e) => update('certificatesLink', e.target.value)} />
             </div>
             <div className="space-y-4">
               {data.certifications.map((c, i) => (
-                <div key={i} className="rounded-md border border-slate-200 dark:border-slate-800 p-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div key={i} className="rounded-md border border-slate-200 dark:border-slate-800 p-3 grid grid-cols-1 sm:grid-cols-4 gap-2">
                   <input className="input" placeholder="Title*" value={c.title} onChange={(e) => {
                     const copy = [...data.certifications];
                     copy[i] = { ...copy[i], title: e.target.value };
@@ -368,10 +426,15 @@ export default function HomePage() {
                     copy[i] = { ...copy[i], issuer: e.target.value };
                     update('certifications', copy);
                   }} />
+                  <input className="input" placeholder="Year" value={c.year || ''} onChange={(e) => {
+                    const copy = [...data.certifications];
+                    copy[i] = { ...copy[i], year: e.target.value };
+                    update('certifications', copy);
+                  }} />
                   <div className="flex items-center gap-2">
-                    <input className="input w-full" placeholder="Year" value={c.year || ''} onChange={(e) => {
+                    <input className="input w-full" placeholder="Certificate Link" value={c.link || ''} onChange={(e) => {
                       const copy = [...data.certifications];
-                      copy[i] = { ...copy[i], year: e.target.value };
+                      copy[i] = { ...copy[i], link: e.target.value };
                       update('certifications', copy);
                     }} />
                     <button onClick={() => update('certifications', data.certifications.filter((_, idx) => idx !== i))} className="text-xs text-red-500">Remove</button>
@@ -379,12 +442,38 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
+            <div className="mt-3">
+              <button onClick={() => update('certifications', [...data.certifications, { title: '' }])} className="text-xs rounded-md border px-3 py-1">+ Add</button>
+            </div>
           </div>
 
           {/* Skills */}
           <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 bg-white/60 dark:bg-slate-900/60">
             <h2 className="font-semibold text-slate-700 dark:text-slate-200 mb-2">Skills</h2>
-            <textarea className="textarea" rows={2} placeholder="Comma-separated: React, Node.js, DSA, C++" value={data.skills || ''} onChange={(e) => update('skills', e.target.value)} />
+            <div className="grid grid-cols-1 gap-3">
+              <div>
+                <label className="text-xs text-slate-500">Tech & Tools</label>
+                <TagsInput
+                  tags={(typeof data.skills === 'string' ? (data.skills || '').split(',').map(s=>s.trim()).filter(Boolean) : (data.skills?.techTools || []))}
+                  onChange={(tags) => {
+                    const current = typeof data.skills === 'string' ? { techTools: [], softSkills: [] } : (data.skills || { techTools: [], softSkills: [] });
+                    update('skills', { ...current, techTools: tags });
+                  }}
+                  placeholder="e.g., React, Node.js, Tailwind, C++"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500">Soft Skills</label>
+                <TagsInput
+                  tags={(typeof data.skills === 'string' ? [] : (data.skills?.softSkills || []))}
+                  onChange={(tags) => {
+                    const current = typeof data.skills === 'string' ? { techTools: [], softSkills: [] } : (data.skills || { techTools: [], softSkills: [] });
+                    update('skills', { ...current, softSkills: tags });
+                  }}
+                  placeholder="e.g., Communication, Leadership, Teamwork"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Education */}
@@ -436,9 +525,9 @@ export default function HomePage() {
 
         {/* Preview */}
         <section className="lg:w-[52%]">
-          <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900">
+          <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 bg-white/80 dark:bg-slate-900/90">
             <h2 className="font-semibold text-slate-700 dark:text-slate-200 mb-3">Live Preview</h2>
-            <div ref={previewRef} className="bg-white dark:bg-white text-slate-900 p-6 rounded-md shadow-md max-w-[794px] w-full mx-auto">
+            <div ref={previewRef} className="bg-white text-slate-900 p-6 rounded-md shadow-md max-w-[794px] w-full mx-auto">
               {/* ATS-friendly single column content */}
               <div className="flex items-start gap-4">
                 {has.img && (
@@ -448,12 +537,12 @@ export default function HomePage() {
                   {has.contact && (
                     <h1 className="text-2xl font-semibold">{data.contact.fullName}</h1>
                   )}
-                  <div className="text-xs mt-1 space-x-2 text-slate-600">
-                    {data.contact.email && <span>{data.contact.email}</span>}
-                    {data.contact.phone && <span>{data.contact.phone}</span>}
-                    {data.contact.linkedin && <span>{data.contact.linkedin}</span>}
-                    {data.contact.github && <span>{data.contact.github}</span>}
-                    {data.contact.website && <span>{data.contact.website}</span>}
+                  <div className="text-xs mt-1 space-x-3 text-slate-700">
+                    {data.contact.email && <a className="preview-link" href={mailto(data.contact.email)}>{data.contact.email}</a>}
+                    {data.contact.phone && <a className="preview-link" href={tel(data.contact.phone)}>{data.contact.phone}</a>}
+                    {data.contact.linkedin && <a className="preview-link" href={normalizeUrl(data.contact.linkedin)} target="_blank" rel="noreferrer noopener">LinkedIn</a>}
+                    {data.contact.github && <a className="preview-link" href={normalizeUrl(data.contact.github)} target="_blank" rel="noreferrer noopener">GitHub</a>}
+                    {data.contact.website && <a className="preview-link" href={normalizeUrl(data.contact.website)} target="_blank" rel="noreferrer noopener">Portfolio</a>}
                   </div>
                 </div>
               </div>
@@ -468,7 +557,28 @@ export default function HomePage() {
               {has.skills && (
                 <section className="mt-3">
                   <h3 className="section-title">Skills</h3>
-                  <p className="section-body">{data.skills}</p>
+                  <div className="mt-1">
+                    {(typeof data.skills === 'string' ? (data.skills || '').split(',').map(s=>s.trim()).filter(Boolean) : data.skills?.techTools || []).length > 0 && (
+                      <div className="mb-1">
+                        <div className="text-[11px] uppercase tracking-wide text-slate-500">Tech & Tools</div>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {(typeof data.skills === 'string' ? (data.skills || '').split(',').map(s=>s.trim()).filter(Boolean) : data.skills?.techTools || []).map((t, i) => (
+                            <span key={i} className="badge">{t}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {(typeof data.skills === 'string' ? [] : data.skills?.softSkills || []).length > 0 && (
+                      <div>
+                        <div className="text-[11px] uppercase tracking-wide text-slate-500">Soft Skills</div>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {(typeof data.skills === 'string' ? [] : data.skills?.softSkills || []).map((t, i) => (
+                            <span key={i} className="badge">{t}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </section>
               )}
 
@@ -502,9 +612,16 @@ export default function HomePage() {
                         <div className="flex justify-between text-sm font-medium">
                           <span>
                             {p.name}
-                            {p.link ? ` | ${p.link}` : ''}
                           </span>
                           {p.tech && <span className="text-slate-500">{p.tech}</span>}
+                        </div>
+                        <div className="text-xs space-x-3 mt-0.5">
+                          {p.link && (
+                            <a className="preview-link" href={normalizeUrl(p.link)} target="_blank" rel="noreferrer noopener">🔗 View Project / Live Link</a>
+                          )}
+                          {p.repo && (
+                            <a className="preview-link" href={normalizeUrl(p.repo)} target="_blank" rel="noreferrer noopener">📂 GitHub Repo</a>
+                          )}
                         </div>
                         {p.description && <p className="section-body">{p.description}</p>}
                       </div>
@@ -516,12 +633,23 @@ export default function HomePage() {
               {has.cert ? (
                 <section className="mt-3">
                   <h3 className="section-title">Certifications</h3>
+                  {data.certificatesLink && (
+                    <div className="text-xs mb-1">
+                      <a className="preview-link" href={normalizeUrl(data.certificatesLink)} target="_blank" rel="noreferrer noopener">📜 View All Certificates</a>
+                    </div>
+                  )}
                   <ul className="list-disc pl-5 text-sm">
                     {data.certifications.filter((c) => c.title?.trim()).map((c, i) => (
                       <li key={i}>
                         {c.title}
                         {c.issuer ? `, ${c.issuer}` : ''}
                         {c.year ? ` (${c.year})` : ''}
+                        {c.link && (
+                          <>
+                            {' '}
+                            <a className="preview-link" href={normalizeUrl(c.link)} target="_blank" rel="noreferrer noopener">🔗 Certificate</a>
+                          </>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -554,10 +682,12 @@ export default function HomePage() {
 
       {/* Tailwind component styles */}
       <style jsx global>{`
-        .input { @apply w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white/80 dark:bg-slate-900/70 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500; }
-        .textarea { @apply w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white/80 dark:bg-slate-900/70 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500; }
+        .input { @apply w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-400 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500; }
+        .textarea { @apply w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-400 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500; }
         .section-title { @apply text-sm font-semibold tracking-wide uppercase text-slate-700; }
         .section-body { @apply text-sm text-slate-700 leading-relaxed; }
+        .preview-link { @apply text-blue-600 underline; }
+        .badge { @apply text-[11px] px-2 py-0.5 rounded-md border border-slate-300 bg-slate-50; }
       `}</style>
     </main>
   );
@@ -578,5 +708,40 @@ function SaveButton({ data }: { data: any }) {
     >
       {saved ? 'Saved ✔' : 'Save Progress'}
     </button>
+  );
+}
+
+function TagsInput({ tags, onChange, placeholder }: { tags: string[]; onChange: (tags: string[]) => void; placeholder?: string }) {
+  const [input, setInput] = useState('');
+  function addTagFromInput() {
+    const parts = input.split(',').map((t) => t.trim()).filter(Boolean);
+    if (parts.length === 0) return;
+    const next = Array.from(new Set([...(tags || []), ...parts]));
+    onChange(next);
+    setInput('');
+  }
+  return (
+    <div className="rounded-md border border-slate-300 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 p-2">
+      <div className="flex flex-wrap gap-1">
+        {(tags || []).map((t, i) => (
+          <button key={i} onClick={() => onChange(tags.filter((_, idx) => idx !== i))} className="badge hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">
+            {t} ×
+          </button>
+        ))}
+        <input
+          className="bg-transparent flex-1 min-w-[140px] outline-none text-sm px-1 py-0.5 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-400"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+              e.preventDefault();
+              addTagFromInput();
+            }
+          }}
+          onBlur={() => addTagFromInput()}
+          placeholder={placeholder}
+        />
+      </div>
+    </div>
   );
 }
