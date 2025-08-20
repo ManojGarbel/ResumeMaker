@@ -31,5 +31,3 @@ Open http://localhost:3000
 - LocalStorage autosave and Reset
 - PDF generation via html2canvas + jsPDF
 - AI Enhance using Google Gemini
-
-# Resume Maker
