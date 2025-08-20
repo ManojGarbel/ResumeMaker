@@ -78,10 +78,6 @@ function useLocalStorage<T>(key: string, initial: T) {
   return [value, setValue] as const;
 }
 
-function classNames(...list: Array<string | false | null | undefined>) {
-  return list.filter(Boolean).join(' ');
-}
-
 function normalizeUrl(raw?: string) {
   if (!raw) return undefined;
   const trimmed = raw.trim();
@@ -114,7 +110,6 @@ export default function HomePage() {
 
   const previewRef = useRef<HTMLDivElement | null>(null);
 
-  // Hydrate theme
   useEffect(() => {
     const root = document.documentElement;
     const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -194,7 +189,6 @@ export default function HomePage() {
     const y = (pageHeight - imgH) / 2;
     pdf.addImage(imgData, 'PNG', x, y, imgW, imgH);
 
-    // Add clickable link overlays mapped from anchors
     const containerRect = element.getBoundingClientRect();
     const anchors = Array.from(element.querySelectorAll('a[href]')) as HTMLAnchorElement[];
     const mmPerPx = imgW / canvas.width;
@@ -209,7 +203,7 @@ export default function HomePage() {
       const linkWmm = r.width * mmPerPx;
       const linkHmm = r.height * mmPerPx;
       try {
-        // @ts-ignore jsPDF typing
+        // @ts-ignore
         pdf.link(linkXmm, linkYmm, linkWmm, linkHmm, { url: href });
       } catch {}
     });
@@ -268,7 +262,6 @@ export default function HomePage() {
             </div>
           </header>
 
-          {/* Contact */}
           <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 bg-white/60 dark:bg-slate-900/60">
             <h2 className="font-semibold text-slate-700 dark:text-slate-200 mb-3">Name & Contact</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -285,7 +278,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* About */}
           <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 bg-white/60 dark:bg-slate-900/60">
             <div className="flex items-center justify-between mb-2">
               <h2 className="font-semibold text-slate-700 dark:text-slate-200">About Me</h2>
@@ -294,7 +286,6 @@ export default function HomePage() {
             <textarea className="textarea" rows={4} placeholder="Brief summary" value={data.about || ''} onChange={(e) => update('about', e.target.value)} />
           </div>
 
-          {/* Experience */}
           <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 bg-white/60 dark:bg-slate-900/60">
             <div className="flex items-center justify-between mb-2">
               <h2 className="font-semibold text-slate-700 dark:text-slate-200">Work Experience</h2>
@@ -353,7 +344,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Projects */}
           <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 bg-white/60 dark:bg-slate-900/60">
             <div className="flex items-center justify-between mb-2">
               <h2 className="font-semibold text-slate-700 dark:text-slate-200">Projects</h2>
@@ -405,7 +395,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Certifications */}
           <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 bg-white/60 dark:bg-slate-900/60">
             <div className="flex items-center justify-between mb-2">
               <h2 className="font-semibold text-slate-700 dark:text-slate-200">Certifications</h2>
@@ -447,7 +436,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Skills */}
           <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 bg-white/60 dark:bg-slate-900/60">
             <h2 className="font-semibold text-slate-700 dark:text-slate-200 mb-2">Skills</h2>
             <div className="grid grid-cols-1 gap-3">
@@ -476,11 +464,9 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Education */}
           <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 bg-white/60 dark:bg-slate-900/60">
             <div className="flex items-center justify-between mb-2">
               <h2 className="font-semibold text-slate-700 dark:text-slate-200">Education</h2>
-              <button onClick={() => update('education', [...data.education, { degree: '' }])} className="text-xs rounded-md border px-2 py-1">+ Add</button>
             </div>
             <div className="space-y-4">
               {data.education.map((e, i) => (
@@ -520,15 +506,16 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
+            <div className="mt-3">
+              <button onClick={() => update('education', [...data.education, { degree: '' }])} className="text-xs rounded-md border px-3 py-1">+ Add</button>
+            </div>
           </div>
         </section>
 
-        {/* Preview */}
         <section className="lg:w-[52%]">
           <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 bg-white/80 dark:bg-slate-900/90">
             <h2 className="font-semibold text-slate-700 dark:text-slate-200 mb-3">Live Preview</h2>
             <div ref={previewRef} className="bg-white text-slate-900 p-6 rounded-md shadow-md max-w-[794px] w-full mx-auto">
-              {/* ATS-friendly single column content */}
               <div className="flex items-start gap-4">
                 {has.img && (
                   <img src={data.profileImageDataUrl} alt="Profile" className="w-20 h-20 rounded-md object-cover border" />
@@ -680,7 +667,6 @@ export default function HomePage() {
         </section>
       </div>
 
-      {/* Tailwind component styles */}
       <style jsx global>{`
         .input { @apply w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-400 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500; }
         .textarea { @apply w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-400 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500; }
@@ -745,3 +731,4 @@ function TagsInput({ tags, onChange, placeholder }: { tags: string[]; onChange: 
     </div>
   );
 }
+
